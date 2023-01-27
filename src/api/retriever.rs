@@ -1,15 +1,17 @@
-use crate::model::device::Device;
-use axum::Json;
+use crate::model::device::DeviceData;
+use axum::{extract::Path, Json};
+use mongodb::bson::oid::ObjectId;
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // sample function, return dummy data
-pub async fn get_latest_data() -> Json<Device> {
+pub async fn get_dummy_data() -> Json<DeviceData> {
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
 
-    let latest_data = Device {
+    let dummy_data = DeviceData {
         id: None,
         timestamp: ts,
         device_id: "488188e2-1c9a-4c65-a83f-ef4b8cb640f1".to_owned(),
@@ -20,5 +22,20 @@ pub async fn get_latest_data() -> Json<Device> {
         accel_z: -9.81,
     };
 
-    Json(latest_data)
+    Json(dummy_data)
+}
+
+pub async fn get_data_by_id(Path(params): Path<HashMap<String, String>>) -> Json<DeviceData> {
+    let id = params.get("id").unwrap();
+    let res = DeviceData {
+        id: Some(ObjectId::parse_str(id).unwrap()),
+        timestamp: 0,
+        device_id: ".".to_owned(),
+        temperature: 0.0,
+        humidity: 0,
+        accel_x: 0.0,
+        accel_y: 0.0,
+        accel_z: 0.0,
+    };
+    Json(res)
 }
