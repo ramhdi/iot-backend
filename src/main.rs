@@ -9,7 +9,7 @@ mod connector;
 mod model;
 
 // import crates
-use api::retriever::{get_data_by_id, get_dummy_data};
+use api::retriever::{get_data_by_id, get_dummy_data, get_latest_data};
 use axum::{routing::get, Router};
 use mongodb::Client;
 
@@ -26,6 +26,7 @@ async fn main() {
         .route("/", get(|| async { "Hello, World!" }))
         .route("/getDummyData", get(get_dummy_data))
         .route("/getDataById/:id", get(get_data_by_id))
+        .route("/getLatestData", get(get_latest_data))
         .with_state(client);
 
     // Run the app on localhost

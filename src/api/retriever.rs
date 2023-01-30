@@ -1,10 +1,13 @@
 use crate::{connector::connector::MongoDB, model::device::DeviceData};
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
     Json,
 };
-use mongodb::{bson::doc, bson::oid::ObjectId, Client};
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    options::FindOptions,
+    Client,
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // sample function, return dummy data
@@ -50,4 +53,25 @@ pub async fn get_data_by_id(
         Err(_) => None,
     };
     return Json(res);
+}
+
+pub async fn get_latest_data(State(client): State<Client>) -> Json<DeviceData> {
+    println!("get_latest_data");
+    let col = MongoDB::init_collection(client)
+        .await
+        .unwrap()
+        .get_collection();
+
+    // Find document with latest timestamp
+    let find_options = FindOptions::builder()
+        .sort(doc! {"timestamp": -1})
+        .limit(1)
+        .build();
+    let find_result = col
+        .find(None, find_options)
+        .await
+        .unwrap()
+        .deserialize_current()
+        .unwrap();
+    return Json(find_result);
 }
