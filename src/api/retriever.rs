@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 // sample function, return dummy data
 pub async fn get_dummy_data() -> Json<DeviceData> {
+    println!("get_dummy_data");
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -26,6 +27,7 @@ pub async fn get_dummy_data() -> Json<DeviceData> {
 }
 
 pub async fn get_data_by_id(Path(params): Path<HashMap<String, String>>) -> Json<DeviceData> {
+    println!("get_data_by_id");
     let id = params.get("id").unwrap();
     let res = DeviceData {
         id: Some(ObjectId::parse_str(id).unwrap()),

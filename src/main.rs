@@ -16,7 +16,7 @@ use connector::connector::MongoDB;
 #[tokio::main]
 async fn main() {
     // init mongodb
-    let db = MongoDB::init().await;
+    let db = MongoDB::init().await.unwrap();
 
     // build our application with a single route
     let app = Router::new()
