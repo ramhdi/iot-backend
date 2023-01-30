@@ -11,20 +11,24 @@ mod model;
 // import crates
 use api::retriever::{get_data_by_id, get_dummy_data};
 use axum::{routing::get, Router};
-use connector::connector::MongoDB;
+use mongodb::Client;
 
 #[tokio::main]
 async fn main() {
-    // init mongodb
-    let db = MongoDB::init().await.unwrap();
+    // MongoDB init
+    let client = Client::with_uri_str("mongodb://localhost:27017")
+        .await
+        .unwrap();
+    //let db = MongoDB::init().await.unwrap();
 
-    // build our application with a single route
+    // API routing
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/getDummyData", get(get_dummy_data))
-        .route("/getDataById/:id", get(get_data_by_id));
+        .route("/getDataById/:id", get(get_data_by_id))
+        .with_state(client);
 
-    // run it with hyper on localhost:1287
+    // Run the app on localhost
     axum::Server::bind(&"0.0.0.0:1287".parse().unwrap())
         .serve(app.into_make_service())
         .await

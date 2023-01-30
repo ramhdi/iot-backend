@@ -1,7 +1,10 @@
-use crate::model::device::DeviceData;
-use axum::{extract::Path, Json};
-use mongodb::bson::oid::ObjectId;
-use std::collections::HashMap;
+use crate::{connector::connector::MongoDB, model::device::DeviceData};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
+use mongodb::{bson::doc, bson::oid::ObjectId, Client};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // sample function, return dummy data
@@ -23,21 +26,28 @@ pub async fn get_dummy_data() -> Json<DeviceData> {
         accel_z: -9.81,
     };
 
-    Json(dummy_data)
+    return Json(dummy_data);
 }
 
-pub async fn get_data_by_id(Path(params): Path<HashMap<String, String>>) -> Json<DeviceData> {
+pub async fn get_data_by_id(
+    State(client): State<Client>,
+    oid: Path<String>,
+) -> Json<Option<DeviceData>> {
     println!("get_data_by_id");
-    let id = params.get("id").unwrap();
-    let res = DeviceData {
-        id: Some(ObjectId::parse_str(id).unwrap()),
-        timestamp: 0,
-        device_id: ".".to_owned(),
-        temperature: 0.0,
-        humidity: 0,
-        accel_x: 0.0,
-        accel_y: 0.0,
-        accel_z: 0.0,
+    let id = oid.0;
+
+    let col = MongoDB::init_collection(client)
+        .await
+        .unwrap()
+        .get_collection();
+
+    let find_result = col
+        .find_one(doc! {"_id": ObjectId::parse_str(id).unwrap()}, None)
+        .await;
+    let res = match find_result {
+        Ok(None) => None,
+        Ok(Some(data)) => Some(data),
+        Err(_) => None,
     };
-    Json(res)
+    return Json(res);
 }
