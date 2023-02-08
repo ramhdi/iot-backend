@@ -10,30 +10,33 @@ use mongodb::{
     options::FindOptions,
     Client,
 };
+use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // sample function, return dummy data
-pub async fn get_dummy_data() -> Json<DeviceData> {
+pub async fn get_dummy_data() -> impl IntoResponse {
     println!("get_dummy_data");
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
 
+    let mut rng = rand::thread_rng();
     let dummy_data = DeviceData {
         id: None,
         timestamp: ts,
         device_id: "488188e2-1c9a-4c65-a83f-ef4b8cb640f1".to_owned(),
-        temperature: 23.88,
-        humidity: 32,
-        accel_x: 0.002,
-        accel_y: -0.001,
-        accel_z: -9.81,
+        temperature: rng.gen_range(0.0..100.0),
+        humidity: rng.gen_range(0..100),
+        accel_x: rng.gen_range(-1.0..1.0),
+        accel_y: rng.gen_range(-1.0..1.0),
+        accel_z: rng.gen_range(-10.0..10.0),
     };
 
-    return Json(dummy_data);
+    return (StatusCode::OK, Json(dummy_data));
 }
 
+// get data by object id
 pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> impl IntoResponse {
     println!("get_data_by_id");
     let id_str = oid.0;
@@ -47,6 +50,7 @@ pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> 
             let id = ObjectId::parse_str(id_str);
             match id {
                 Ok(id) => {
+                    // Valid ID
                     let filter = doc! {"_id": id};
                     let find_result = col.find_one(filter, None).await;
                     match find_result {
@@ -59,6 +63,7 @@ pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> 
                     }
                 }
                 Err(e) => {
+                    // Caught invalid ID
                     println!("{}", e);
                     return (StatusCode::BAD_REQUEST, Err("Invalid ID"));
                 }
@@ -75,6 +80,7 @@ pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> 
     }
 }
 
+// get latest data
 pub async fn get_latest_data(State(client): State<Client>) -> impl IntoResponse {
     println!("get_latest_data");
     let col_result = MongoDB::init_collection(client).await;

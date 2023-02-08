@@ -634,6 +634,7 @@ dependencies = [
  "dotenv",
  "hyper",
  "mongodb",
+ "rand",
  "serde",
  "tokio",
  "tower",
