@@ -11,8 +11,8 @@ mod model;
 use std::net::SocketAddr;
 
 // import crates
+use api::publisher::post_data;
 use api::retriever::{get_data_by_id, get_dummy_data, get_latest_data};
-use api::publisher::{post_data};
 use axum::{routing::get, routing::post, Router};
 use mongodb::Client;
 

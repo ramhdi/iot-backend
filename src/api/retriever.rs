@@ -25,7 +25,7 @@ pub async fn get_dummy_data() -> impl IntoResponse {
     let dummy_data = DeviceData {
         id: None,
         timestamp: ts,
-        device_id: "488188e2-1c9a-4c65-a83f-ef4b8cb640f1".to_owned(),
+        device_id: String::from("488188e2-1c9a-4c65-a83f-ef4b8cb640f1"),
         temperature: rng.gen_range(0.0..100.0),
         humidity: rng.gen_range(0..100),
         accel_x: rng.gen_range(-1.0..1.0),
@@ -54,28 +54,25 @@ pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> 
                     let filter = doc! {"_id": id};
                     let find_result = col.find_one(filter, None).await;
                     match find_result {
-                        Ok(None) => return (StatusCode::NOT_FOUND, Err("Not found")),
+                        Ok(None) => return (StatusCode::NOT_FOUND, Err(String::from("Not found"))),
                         Ok(Some(data)) => return (StatusCode::OK, Ok(Json(data))),
                         Err(e) => {
-                            println!("{}", e);
-                            return (StatusCode::INTERNAL_SERVER_ERROR, Err("Error finding data"));
+                            println!("{}", e.to_string());
+                            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
                         }
                     }
                 }
                 Err(e) => {
                     // Caught invalid ID
-                    println!("{}", e);
-                    return (StatusCode::BAD_REQUEST, Err("Invalid ID"));
+                    println!("{}", e.to_string());
+                    return (StatusCode::BAD_REQUEST, Err(e.to_string()));
                 }
             }
         }
         Err(e) => {
             // Failed connecting to DB
-            println!("{}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err("Failed connecting to DB"),
-            );
+            println!("{}", e.to_string());
+            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
         }
     }
 }
@@ -104,11 +101,8 @@ pub async fn get_latest_data(State(client): State<Client>) -> impl IntoResponse 
         }
         Err(e) => {
             // Failed connecting to DB
-            println!("{}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err("Failed connecting to DB"),
-            );
+            println!("{}", e.to_string());
+            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
         }
     }
 }
