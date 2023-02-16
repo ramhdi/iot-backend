@@ -1,25 +1,19 @@
 use crate::{connector::connector::MongoDB, model::device::DeviceData};
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::extract::Path;
 use mongodb::{
     bson::{doc, oid::ObjectId},
     options::FindOptions,
     Client,
 };
 use rand::Rng;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    error::Error,
+    time::{SystemTime, SystemTimeError, UNIX_EPOCH},
+};
 
 // sample function, return dummy data
-pub async fn get_dummy_data() -> impl IntoResponse {
-    println!("get_dummy_data");
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
 
     let mut rng = rand::thread_rng();
     let dummy_data = DeviceData {
@@ -33,76 +27,67 @@ pub async fn get_dummy_data() -> impl IntoResponse {
         accel_z: rng.gen_range(-10.0..10.0),
     };
 
-    return (StatusCode::OK, Json(dummy_data));
+    return Ok(dummy_data);
 }
 
 // get data by object id
-pub async fn get_data_by_id(State(client): State<Client>, oid: Path<String>) -> impl IntoResponse {
-    println!("get_data_by_id");
-    let id_str = oid.0;
-
-    let col_result = MongoDB::init_collection(client).await;
-    match col_result {
-        Ok(c) => {
-            // Success connecting to DB
-            let col = c.get_collection();
-            // Find document with corresponding id
-            let id = ObjectId::parse_str(id_str);
-            match id {
-                Ok(id) => {
-                    // Valid ID
-                    let filter = doc! {"_id": id};
-                    let find_result = col.find_one(filter, None).await;
-                    match find_result {
-                        Ok(None) => return (StatusCode::NOT_FOUND, Err(String::from("Not found"))),
-                        Ok(Some(data)) => return (StatusCode::OK, Ok(Json(data))),
-                        Err(e) => {
-                            println!("{}", e.to_string());
-                            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
-                        }
-                    }
-                }
-                Err(e) => {
-                    // Caught invalid ID
-                    println!("{}", e.to_string());
-                    return (StatusCode::BAD_REQUEST, Err(e.to_string()));
-                }
-            }
-        }
-        Err(e) => {
-            // Failed connecting to DB
-            println!("{}", e.to_string());
-            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
-        }
-    }
+pub async fn get_data_by_id(
+    client: Client,
+    oid: Path<String>,
+) -> Result<Option<DeviceData>, Box<dyn Error>> {
+    let id = ObjectId::parse_str(oid.0)?;
+    let filter = doc! {"_id": id};
+    return Ok(MongoDB::init_collection(client)
+        .await?
+        .get_collection()
+        .find_one(filter, None)
+        .await?);
 }
 
 // get latest data
-pub async fn get_latest_data(State(client): State<Client>) -> impl IntoResponse {
-    println!("get_latest_data");
-    let col_result = MongoDB::init_collection(client).await;
-    match col_result {
-        Ok(c) => {
-            // Success connecting to DB
-            let col = c.get_collection();
-            // Find document with latest timestamp
-            let find_options = FindOptions::builder()
-                .sort(doc! {"timestamp": -1})
-                .limit(1)
-                .build();
+pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongodb::error::Error> {
+    let find_options = FindOptions::builder()
+        .sort(doc! {"timestamp": -1})
+        .limit(1)
+        .build();
 
-            let find_result = col
-                .find(None, find_options)
-                .await
-                .unwrap()
-                .deserialize_current()
-                .unwrap();
-            return (StatusCode::OK, Ok(Json(find_result)));
-        }
-        Err(e) => {
-            // Failed connecting to DB
-            println!("{}", e.to_string());
-            return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
-        }
+    let mut cursor = MongoDB::init_collection(client)
+        .await?
+        .get_collection()
+        .find(None, find_options)
+        .await?;
+
+    let ok = cursor.advance().await?;
+    if !ok {
+        return Ok(None);
     }
+
+    return Ok(Some(cursor.deserialize_current()?));
+
+    // println!("get_latest_data");
+    // let col_result = MongoDB::init_collection(client).await;
+    // match col_result {
+    //     Ok(c) => {
+    //         // Success connecting to DB
+    //         let col = c.get_collection();
+    //         // Find document with latest timestamp
+    //         let find_options = FindOptions::builder()
+    //             .sort(doc! {"timestamp": -1})
+    //             .limit(1)
+    //             .build();
+
+    //         let find_result = col
+    //             .find(None, find_options)
+    //             .await
+    //             .unwrap()
+    //             .deserialize_current()
+    //             .unwrap();
+    //         return (StatusCode::OK, Ok(Json(find_result)));
+    //     }
+    //     Err(e) => {
+    //         // Failed connecting to DB
+    //         println!("{}", e.to_string());
+    //         return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
+    //     }
+    // }
 }
