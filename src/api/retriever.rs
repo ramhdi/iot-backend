@@ -66,3 +66,19 @@ pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongo
 
     return Ok(Some(cursor.deserialize_current()?));
 }
+
+// Get all entries
+pub async fn get_all_data(client: Client) -> Result<Vec<DeviceData>, mongodb::error::Error> {
+    let mut cursor = MongoDB::init_collection(client)
+        .await?
+        .get_collection()
+        .find(None, None)
+        .await?;
+
+    let mut result: Vec<DeviceData> = Vec::new();
+    while cursor.advance().await? {
+        result.push(cursor.deserialize_current()?);
+    }
+
+    return Ok(result);
+}
