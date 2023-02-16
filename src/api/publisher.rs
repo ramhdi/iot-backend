@@ -1,7 +1,9 @@
+// Data publisher
+
 use crate::{connector::connector::MongoDB, model::device::DeviceData};
 use mongodb::Client;
 
-// post data
+// Post new data
 pub async fn post_data(
     client: Client,
     device_data: DeviceData,

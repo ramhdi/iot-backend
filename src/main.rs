@@ -3,14 +3,14 @@
  * IoT backend for home IoT device
  * ramhdi, 26/01/2023
  */
-// import local modules
+// Import local modules
 mod api;
 mod connector;
 mod model;
 
 use std::net::SocketAddr;
 
-// import crates
+// Import crates
 use api::api_wrapper::*;
 use axum::{routing::get, routing::post, Router};
 use mongodb::Client;
@@ -26,6 +26,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/device_data/dummy", get(get_dummy_data_wrapped))
+        .route("/device_data/dummy", post(post_dummy_data_wrapped))
         .route("/device_data/:id", get(get_data_by_id_wrapped))
         .route("/device_data/latest", get(get_latest_data_wrapped))
         .route("/device_data", post(post_data_wrapped))

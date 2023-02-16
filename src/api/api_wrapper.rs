@@ -1,3 +1,5 @@
+// REST API wrapper
+
 use crate::{api::*, model::device::DeviceData};
 use axum::{
     extract::{Path, State},
@@ -54,7 +56,23 @@ pub async fn post_data_wrapped(
     let res: Result<String, mongodb::error::Error> =
         publisher::post_data(client, device_data).await;
     match res {
-        Ok(str) => return (StatusCode::OK, Ok(str)),
+        Ok(oid) => return (StatusCode::OK, Ok(oid)),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string())),
+    }
+}
+
+// post_dummy_data
+pub async fn post_dummy_data_wrapped(State(client): State<Client>) -> impl IntoResponse {
+    let dummy_data_result: Result<DeviceData, SystemTimeError> = retriever::get_dummy_data().await;
+    match dummy_data_result {
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string())),
+        Ok(dummy_data) => {
+            let post_result: Result<String, mongodb::error::Error> =
+                publisher::post_data(client, dummy_data).await;
+            match post_result {
+                Ok(oid) => return (StatusCode::OK, Ok(oid)),
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string())),
+            }
+        }
     }
 }

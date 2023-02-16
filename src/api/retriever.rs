@@ -1,3 +1,5 @@
+// Data retriever
+
 use crate::{connector::connector::MongoDB, model::device::DeviceData};
 use axum::extract::Path;
 use mongodb::{
@@ -11,7 +13,7 @@ use std::{
     time::{SystemTime, SystemTimeError, UNIX_EPOCH},
 };
 
-// sample function, return dummy data
+// Get dummy data
 pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
     let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
 
@@ -30,7 +32,7 @@ pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
     return Ok(dummy_data);
 }
 
-// get data by object id
+// Get entry by object id
 pub async fn get_data_by_id(
     client: Client,
     oid: Path<String>,
@@ -44,7 +46,7 @@ pub async fn get_data_by_id(
         .await?);
 }
 
-// get latest data
+// Get latest entry
 pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongodb::error::Error> {
     let find_options = FindOptions::builder()
         .sort(doc! {"timestamp": -1})
@@ -63,31 +65,4 @@ pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongo
     }
 
     return Ok(Some(cursor.deserialize_current()?));
-
-    // println!("get_latest_data");
-    // let col_result = MongoDB::init_collection(client).await;
-    // match col_result {
-    //     Ok(c) => {
-    //         // Success connecting to DB
-    //         let col = c.get_collection();
-    //         // Find document with latest timestamp
-    //         let find_options = FindOptions::builder()
-    //             .sort(doc! {"timestamp": -1})
-    //             .limit(1)
-    //             .build();
-
-    //         let find_result = col
-    //             .find(None, find_options)
-    //             .await
-    //             .unwrap()
-    //             .deserialize_current()
-    //             .unwrap();
-    //         return (StatusCode::OK, Ok(Json(find_result)));
-    //     }
-    //     Err(e) => {
-    //         // Failed connecting to DB
-    //         println!("{}", e.to_string());
-    //         return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string()));
-    //     }
-    // }
 }

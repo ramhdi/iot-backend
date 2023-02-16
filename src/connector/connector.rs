@@ -1,3 +1,5 @@
+// DB connector
+
 use crate::model::device::DeviceData;
 use mongodb::{
     bson::doc,
