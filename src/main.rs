@@ -8,12 +8,12 @@ mod api;
 mod connector;
 mod model;
 
-use std::net::SocketAddr;
-
 // Import crates
 use api::api_wrapper::*;
 use axum::{routing::get, routing::post, Router};
 use mongodb::Client;
+use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
@@ -21,6 +21,9 @@ async fn main() {
     let client = Client::with_uri_str("mongodb://localhost:27017")
         .await
         .unwrap();
+
+    // CORS layer
+    let cors = CorsLayer::new().allow_origin(Any);
 
     // API routing
     let app = Router::new()
@@ -32,7 +35,8 @@ async fn main() {
         .route("/device_data/dummy", post(post_dummy_data_wrapped))
         .route("/device_data/latest", get(get_latest_data_wrapped))
         .route("/device_data/all", get(get_all_data_wrapped))
-        .with_state(client);
+        .with_state(client)
+        .layer(cors);
 
     // Run the app on localhost
     let address = SocketAddr::from(([127, 0, 0, 1], 1287));
