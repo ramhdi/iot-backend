@@ -35,6 +35,7 @@ async fn main() {
         .route("/device_data/dummy", post(post_dummy_data_wrapped))
         .route("/device_data/latest", get(get_latest_data_wrapped))
         .route("/device_data/all", get(get_all_data_wrapped))
+        .route("/device_data/ts", get(get_time_series_data_wrapped))
         .with_state(client)
         .layer(cors);
 

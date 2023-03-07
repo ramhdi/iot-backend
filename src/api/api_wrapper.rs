@@ -1,6 +1,9 @@
 // REST API wrapper
 
-use crate::{api::*, model::device::DeviceData};
+use crate::{
+    api::*,
+    model::device::{DeviceData, TSRequest},
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -27,7 +30,7 @@ pub async fn get_data_by_id_wrapped(
 ) -> impl IntoResponse {
     println!("get_data_by_id");
     let res: Result<Option<DeviceData>, Box<dyn Error>> =
-        retriever::get_data_by_id(client, oid).await;
+        retriever::get_data_by_id(client, oid.0).await;
     match res {
         Err(err) => {
             if let Some(mongo_err) = err.downcast_ref::<mongodb::error::Error>() {
@@ -70,6 +73,31 @@ pub async fn get_all_data_wrapped(State(client): State<Client>) -> impl IntoResp
     match res {
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Err(e.to_string())),
         Ok(data_vec) => return (StatusCode::OK, Ok(Json(data_vec))),
+    }
+}
+
+// get_time_series_data
+pub async fn get_time_series_data_wrapped(
+    State(client): State<Client>,
+    Json(request): Json<TSRequest>,
+) -> impl IntoResponse {
+    println!("get_time_series_data");
+    let res = retriever::get_time_series_data(client, request).await;
+    match res {
+        Err(err) => {
+            if let Some(mongo_err) = err.downcast_ref::<mongodb::error::Error>() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Err(mongo_err.to_string()),
+                );
+            } else if err.to_string() == "Invalid param" {
+                return (StatusCode::BAD_REQUEST, Err(err.to_string()));
+            } else {
+                return (StatusCode::INTERNAL_SERVER_ERROR, Err(err.to_string()));
+            }
+        }
+        Ok(None) => return (StatusCode::NOT_FOUND, Err(String::from("No data"))),
+        Ok(Some(time_series)) => return (StatusCode::OK, Ok(Json(time_series))),
     }
 }
 
