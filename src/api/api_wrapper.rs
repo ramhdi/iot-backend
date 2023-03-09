@@ -5,7 +5,7 @@ use crate::{
     model::device::{DeviceData, TSRequest},
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -23,14 +23,14 @@ pub async fn get_dummy_data_wrapped() -> impl IntoResponse {
     }
 }
 
-// get_data_by_id
-pub async fn get_data_by_id_wrapped(
+// get_data_by_oid
+pub async fn get_data_by_oid_wrapped(
     State(client): State<Client>,
     oid: Path<String>,
 ) -> impl IntoResponse {
-    println!("get_data_by_id");
+    println!("get_data_by_oid");
     let res: Result<Option<DeviceData>, Box<dyn Error>> =
-        retriever::get_data_by_id(client, oid.0).await;
+        retriever::get_data_by_oid(client, oid.0).await;
     match res {
         Err(err) => {
             if let Some(mongo_err) = err.downcast_ref::<mongodb::error::Error>() {
@@ -76,13 +76,13 @@ pub async fn get_all_data_wrapped(State(client): State<Client>) -> impl IntoResp
     }
 }
 
-// get_time_series_data
-pub async fn get_time_series_data_wrapped(
+// get_hist_data
+pub async fn get_hist_data_wrapped(
     State(client): State<Client>,
-    Json(request): Json<TSRequest>,
+    request: Query<TSRequest>,
 ) -> impl IntoResponse {
-    println!("get_time_series_data");
-    let res = retriever::get_time_series_data(client, request).await;
+    println!("get_hist_data");
+    let res = retriever::get_hist_data(client, request.0).await;
     match res {
         Err(err) => {
             if let Some(mongo_err) = err.downcast_ref::<mongodb::error::Error>() {
@@ -96,8 +96,7 @@ pub async fn get_time_series_data_wrapped(
                 return (StatusCode::INTERNAL_SERVER_ERROR, Err(err.to_string()));
             }
         }
-        Ok(None) => return (StatusCode::NOT_FOUND, Err(String::from("No data"))),
-        Ok(Some(time_series)) => return (StatusCode::OK, Ok(Json(time_series))),
+        Ok(time_series) => return (StatusCode::OK, Ok(Json(time_series))),
     }
 }
 

@@ -32,7 +32,7 @@ pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
 }
 
 // Get entry by object id
-pub async fn get_data_by_id(
+pub async fn get_data_by_oid(
     client: Client,
     oid: String,
 ) -> Result<Option<DeviceData>, Box<dyn Error>> {
@@ -82,11 +82,11 @@ pub async fn get_all_data(client: Client) -> Result<Vec<DeviceData>, mongodb::er
     return Ok(result);
 }
 
-// Get data as time-series
-pub async fn get_time_series_data(
+// Get historical data by device_id, start and end time
+pub async fn get_hist_data(
     client: Client,
     request: TSRequest,
-) -> Result<Option<TSData>, Box<dyn Error>> {
+) -> Result<Vec<DeviceData>, Box<dyn Error>> {
     let filter = doc! {
         "device_id": request.device_id,
         "timestamp": {
@@ -101,31 +101,10 @@ pub async fn get_time_series_data(
         .find(filter, None)
         .await?;
 
-    let mut timestamp: Vec<u64> = Vec::new();
-    let mut ts_data: Vec<DeviceParam> = Vec::new();
-
+    let mut ts_data: Vec<DeviceData> = Vec::new();
     while cursor.advance().await? {
-        timestamp.push(cursor.deserialize_current()?.timestamp);
-        match request.param.as_str() {
-            "temperature" => ts_data.push(DeviceParam::Temperature(
-                cursor.deserialize_current()?.temperature,
-            )),
-            "humidity" => ts_data.push(DeviceParam::Humidity(
-                cursor.deserialize_current()?.humidity,
-            )),
-            "accel_x" => ts_data.push(DeviceParam::Accel(cursor.deserialize_current()?.accel_x)),
-            "accel_y" => ts_data.push(DeviceParam::Accel(cursor.deserialize_current()?.accel_y)),
-            "accel_z" => ts_data.push(DeviceParam::Accel(cursor.deserialize_current()?.accel_z)),
-            _ => return Err(String::from("Invalid param").into()),
-        }
+        ts_data.push(cursor.deserialize_current()?);
     }
 
-    if timestamp.len() == 0 {
-        return Ok(None);
-    }
-
-    return Ok(Some(TSData {
-        timestamp: timestamp,
-        data: ts_data,
-    }));
+    return Ok(ts_data);
 }
