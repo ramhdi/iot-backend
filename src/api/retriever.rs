@@ -1,19 +1,20 @@
 // Data retriever
 
-use crate::{connector::connector::MongoDB, model::device::*};
+use crate::{api_error::error::APIError, connector::connector::MongoDB, model::device::*};
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
 use mongodb::{
     bson::{doc, oid::ObjectId},
     options::FindOptions,
     Client,
 };
 use rand::Rng;
-use std::{
-    error::Error,
-    time::{SystemTime, SystemTimeError, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // Get dummy data
-pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
+pub async fn get_dummy_data() -> Result<Json<DeviceData>, APIError> {
     let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
 
     let mut rng = rand::thread_rng();
@@ -28,25 +29,29 @@ pub async fn get_dummy_data() -> Result<DeviceData, SystemTimeError> {
         accel_z: rng.gen_range(-10.0..10.0),
     };
 
-    return Ok(dummy_data);
+    return Ok(Json(dummy_data));
 }
 
 // Get entry by object id
 pub async fn get_data_by_oid(
-    client: Client,
-    oid: String,
-) -> Result<Option<DeviceData>, Box<dyn Error>> {
-    let id = ObjectId::parse_str(oid)?;
+    State(client): State<Client>,
+    oid: Path<String>,
+) -> Result<Json<Option<DeviceData>>, APIError> {
+    let id = ObjectId::parse_str(oid.0)?;
     let filter = doc! {"_id": id};
-    return Ok(MongoDB::init_collection(client)
-        .await?
-        .get_collection()
-        .find_one(filter, None)
-        .await?);
+    return Ok(Json(
+        MongoDB::init_collection(client)
+            .await?
+            .get_collection()
+            .find_one(filter, None)
+            .await?,
+    ));
 }
 
 // Get latest entry
-pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongodb::error::Error> {
+pub async fn get_latest_data(
+    State(client): State<Client>,
+) -> Result<Json<Option<DeviceData>>, APIError> {
     let find_options = FindOptions::builder()
         .sort(doc! {"timestamp": -1})
         .limit(1)
@@ -60,14 +65,14 @@ pub async fn get_latest_data(client: Client) -> Result<Option<DeviceData>, mongo
 
     let ok = cursor.advance().await?;
     if !ok {
-        return Ok(None);
+        return Ok(Json(None));
     }
 
-    return Ok(Some(cursor.deserialize_current()?));
+    return Ok(Json(Some(cursor.deserialize_current()?)));
 }
 
 // Get all entries
-pub async fn get_all_data(client: Client) -> Result<Vec<DeviceData>, mongodb::error::Error> {
+pub async fn get_all_data(State(client): State<Client>) -> Result<Json<Vec<DeviceData>>, APIError> {
     let mut cursor = MongoDB::init_collection(client)
         .await?
         .get_collection()
@@ -79,19 +84,19 @@ pub async fn get_all_data(client: Client) -> Result<Vec<DeviceData>, mongodb::er
         result.push(cursor.deserialize_current()?);
     }
 
-    return Ok(result);
+    return Ok(Json(result));
 }
 
 // Get historical data by device_id, start and end time
 pub async fn get_hist_data(
-    client: Client,
-    request: TSRequest,
-) -> Result<Vec<DeviceData>, Box<dyn Error>> {
+    State(client): State<Client>,
+    request: Query<TSRequest>,
+) -> Result<Json<Vec<DeviceData>>, APIError> {
     let filter = doc! {
-        "device_id": request.device_id,
+        "device_id": request.0.device_id,
         "timestamp": {
-            "$gt" : request.start as i64,
-            "$lt" : request.end as i64
+            "$gt" : request.0.start as i64,
+            "$lt" : request.0.end as i64
         }
     };
 
@@ -106,5 +111,5 @@ pub async fn get_hist_data(
         ts_data.push(cursor.deserialize_current()?);
     }
 
-    return Ok(ts_data);
+    return Ok(Json(ts_data));
 }

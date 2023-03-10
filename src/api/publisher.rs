@@ -1,13 +1,14 @@
 // Data publisher
 
-use crate::{connector::connector::MongoDB, model::device::DeviceData};
+use crate::{api_error::error::APIError, connector::connector::MongoDB, model::device::DeviceData};
+use axum::{extract::State, Json};
 use mongodb::{results::InsertManyResult, Client};
 
 // Post new data
 pub async fn post_data(
-    client: Client,
-    device_data: DeviceData,
-) -> Result<String, mongodb::error::Error> {
+    State(client): State<Client>,
+    Json(device_data): Json<DeviceData>,
+) -> Result<String, APIError> {
     return Ok(MongoDB::init_collection(client)
         .await?
         .get_collection()
@@ -15,17 +16,19 @@ pub async fn post_data(
         .await?
         .inserted_id
         .as_object_id()
-        .unwrap()
+        .unwrap_or_default()
         .to_string());
 }
 
 pub async fn post_batch_data(
-    client: Client,
-    device_data_vec: Vec<DeviceData>,
-) -> Result<InsertManyResult, mongodb::error::Error> {
-    return Ok(MongoDB::init_collection(client)
-        .await?
-        .get_collection()
-        .insert_many(device_data_vec, None)
-        .await?);
+    State(client): State<Client>,
+    Json(device_data_vec): Json<Vec<DeviceData>>,
+) -> Result<Json<InsertManyResult>, APIError> {
+    return Ok(Json(
+        MongoDB::init_collection(client)
+            .await?
+            .get_collection()
+            .insert_many(device_data_vec, None)
+            .await?,
+    ));
 }
